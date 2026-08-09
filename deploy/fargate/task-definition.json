@@ -1,0 +1,35 @@
+{
+  "family": "lol-winprob-ingest",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "1024",
+  "memory": "2048",
+  "ephemeralStorage": { "sizeInGiB": 30 },
+  "runtimePlatform": { "cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX" },
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/lolWinprobExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "ingest",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/lol-winprob:latest",
+      "essential": true,
+      "environment": [
+        { "name": "HF_DATASET_REPO", "value": "zauberine/lol-winprob" },
+        { "name": "HF_PRIVATE", "value": "0" },
+        { "name": "START_AFTER", "value": "2026-01-01" }
+      ],
+      "secrets": [
+        { "name": "GRID_API_KEY", "valueFrom": "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/lol-winprob/GRID_API_KEY" },
+        { "name": "HF_TOKEN",     "valueFrom": "arn:aws:ssm:<REGION>:<ACCOUNT_ID>:parameter/lol-winprob/HF_TOKEN" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/lol-winprob-ingest",
+          "awslogs-region": "<REGION>",
+          "awslogs-stream-prefix": "ingest",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}
