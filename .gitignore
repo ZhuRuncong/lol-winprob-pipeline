@@ -1,0 +1,13 @@
+# secrets
+.env
+
+# pipeline state + data artifacts (regenerated / re-fetched)
+data/processed/
+data/pack/
+data/pipeline_state.json
+data/raw/
+
+# python
+__pycache__/
+*.pyc
+.venv/
