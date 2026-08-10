@@ -10,14 +10,14 @@ set -euo pipefail
 cd /app
 
 : "${GRID_API_KEY:?GRID_API_KEY not set (inject via SSM)}"
-START_AFTER="${START_AFTER:-2026-01-01}"
+# START_AFTER is the single source of truth for scope; fetch floors to it.
+export START_AFTER="${START_AFTER:-2026-01-01}"
 
 # On Fargate the filesystem is ephemeral (unless /app/data is an EFS mount), so
-# regenerate the series list on first run. YEARS_BACK=1 keeps the fetch short.
+# regenerate the series list on first run.
 if [ ! -f data/pipeline_state.json ]; then
-  echo "== regenerating series list (>= ${START_AFTER}) =="
-  YEARS_BACK=1 python -m pipeline.pipeline fetch
-  python deploy/prune_state.py --after "${START_AFTER}"
+  echo "== regenerating series list (start time on/after ${START_AFTER}) =="
+  python -m pipeline.pipeline fetch
 fi
 
 STAGE="${1:-all}"

@@ -11,7 +11,10 @@ process environment always wins over .env):
   HF_DATASET_REPO  required for upload         e.g. "youruser/lol-winprob"
   HF_PRIVATE       optional (default "0")      "1" -> create the HF repo as private
   GRID_TITLE_ID    optional (default "3")      GRID title id for League of Legends
-  YEARS_BACK       optional (default "5")      series start-time window
+  YEARS_BACK       optional (default "5")      max lookback ceiling (publish limit)
+  START_AFTER      optional                    absolute start-date floor YYYY-MM-DD;
+                                               single source of truth for scope, wins
+                                               over YEARS_BACK when more recent
   WORK_DIR         optional                    defaults to <project>/data
 
 Stages (resumable; state kept in WORK_DIR/pipeline_state.json):
@@ -153,17 +156,52 @@ def split_for(series_id: str) -> str:
     return "test"
 
 
+def window_bounds() -> tuple[str, str]:
+    """(gte, lte) ISO instants for the fetch filter.
+
+    The window start is the LATER of (now - YEARS_BACK years) and START_AFTER, so
+    START_AFTER is the single source of truth for scope while YEARS_BACK acts only
+    as the maximum-lookback ceiling (the publish-permission limit). Set
+    START_AFTER=2026-01-01 and every entry point — local or cloud — scopes to 2026.
+    """
+    years = int(os.environ.get("YEARS_BACK", "5"))
+    now = datetime.now(timezone.utc)
+    gte_dt = now - timedelta(days=365 * years)
+    start_after = os.environ.get("START_AFTER", "").strip()
+    if start_after:
+        sa_dt = datetime.strptime(start_after[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        gte_dt = max(gte_dt, sa_dt)
+    return gte_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def scope_phrase() -> str:
+    """Human phrase describing the corpus span, for the manifest + dataset card.
+
+    Describes the EFFECTIVE floor: START_AFTER only when it is the binding
+    constraint (more recent than the YEARS_BACK ceiling), else the years window.
+    """
+    years = int(os.environ.get("YEARS_BACK", "5"))
+    now = datetime.now(timezone.utc)
+    gte_years = now - timedelta(days=365 * years)
+    start_after = os.environ.get("START_AFTER", "").strip()
+    if start_after:
+        sa_dt = datetime.strptime(start_after[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        if sa_dt > gte_years:
+            return f"with start time on/after {start_after[:10]}"
+    return f"from the past {years} years"
+
+
 # ---------------------------------------------------------------- stage: fetch
 
 def stage_fetch(state: dict) -> None:
-    """List eligible series: this title, ESPORTS (non-scrim) only, past N years."""
+    """List eligible series: this title, ESPORTS (non-scrim) only, within the
+    START_AFTER / YEARS_BACK window (see window_bounds)."""
     api_key = require_env("GRID_API_KEY")
     title_id = os.environ.get("GRID_TITLE_ID", "3")
-    years = int(os.environ.get("YEARS_BACK", "5"))
-    now = datetime.now(timezone.utc)
-    gte = (now - timedelta(days=365 * years)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    lte = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    print(f"fetching ESPORTS series, title {title_id}, window {gte} .. {lte}")
+    gte, lte = window_bounds()
+    start_after = os.environ.get("START_AFTER", "").strip()
+    print(f"fetching ESPORTS series, title {title_id}, window {gte} .. {lte}"
+          + (f" (START_AFTER floor {start_after[:10]})" if start_after else ""))
 
     after, total, added = None, None, 0
     while True:
@@ -340,8 +378,8 @@ def stage_pack(state: dict, strict: bool) -> None:
         "created_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "n_games": len(manifest_games),
         "split_counts": counts,
-        "scope": "processed derivatives only; non-scrim (ESPORTS) series, "
-                 f"past {os.environ.get('YEARS_BACK', '5')} years",
+        "scope": "processed derivatives only; non-scrim (ESPORTS) series "
+                 f"{scope_phrase()}",
         "games": manifest_games,
     }
     with open(PACK_DIR / "manifest.json", "w", encoding="utf-8") as fh:
@@ -349,7 +387,7 @@ def stage_pack(state: dict, strict: bool) -> None:
 
     (PACK_DIR / "README.md").write_text(README_TEMPLATE.format(
         n=len(manifest_games), schema=SCHEMA_VERSION,
-        years=os.environ.get("YEARS_BACK", "5"), **counts), encoding="utf-8")
+        span=scope_phrase(), **counts), encoding="utf-8")
     print(f"pack done: {len(manifest_games)} games, splits {counts} -> {PACK_DIR}")
 
 
@@ -361,7 +399,7 @@ League of Legends games. {n} games, schema {schema}.
 Splits (assigned by series id): {train} train / {val} val / {test} test.
 
 Published as **processed derivatives only** (no raw event feeds), covering
-**non-scrim (ESPORTS) series** from the past {years} years, with permission from the
+**non-scrim (ESPORTS) series** {span}, with permission from the
 data provider. Patch/version metadata is retained per game (`meta.json` and the
 manifest's `patch` field).
 

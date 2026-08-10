@@ -22,12 +22,15 @@ if [ -z "${GRID_API_KEY:-}" ] && [ ! -f .env ]; then
   exit 1
 fi
 
-echo "== 4. regenerate 2026 series list =="
+echo "== 4. regenerate series list =="
+# START_AFTER is the single source of truth for scope; fetch floors to it, so no
+# separate prune step is needed. Defaults to 2026-01-01 (this year) if unset.
+export START_AFTER="${START_AFTER:-2026-01-01}"
 if [ -f data/pipeline_state.json ]; then
   echo "   data/pipeline_state.json already exists — skipping fetch (delete it to refetch)."
 else
-  YEARS_BACK=1 python -m pipeline.pipeline fetch
-  python deploy/prune_state.py --after 2026-01-01
+  echo "   fetching series with start time on/after ${START_AFTER}"
+  python -m pipeline.pipeline fetch
 fi
 
 echo "== 5. GRID speed gate =="

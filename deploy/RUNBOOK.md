@@ -46,10 +46,9 @@ sudo apt-get install -y python3-venv tmux
 python3 -m venv .venv && source .venv/bin/activate
 pip install -U pip && pip install -r requirements.txt
 
-# list eligible ESPORTS series, then floor to this-year-only (reproduces the
-# 3,265-series 2026 scope). YEARS_BACK=1 keeps the fetch short (~2025-08 .. now).
-YEARS_BACK=1 python -m pipeline.pipeline fetch
-python deploy/prune_state.py --after 2026-01-01
+# START_AFTER is the single source of truth for scope; fetch lists only series
+# starting on/after it (reproduces the ~3,265-series 2026 set). No prune needed.
+START_AFTER=2026-01-01 python -m pipeline.pipeline fetch
 ```
 
 ## 4. Speed gate (decision point)

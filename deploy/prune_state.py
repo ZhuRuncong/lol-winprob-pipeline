@@ -1,11 +1,11 @@
-"""Prune pipeline_state.json to series starting on/after an absolute cutoff date.
+"""Trim an existing pipeline_state.json to series starting on/after a date.
 
-The pipeline's window is set by YEARS_BACK (whole years). This applies an exact
-date floor on top, so the ingest scope is reproducible from code alone — no need
-to ship the state file. Reproduce the current 2026-only scope on a fresh VM with:
+Scope is normally set by START_AFTER at fetch time (fetch lists only series on/
+after it — the single source of truth). This script is a SUPPLEMENTARY tool for
+trimming a state file you already have, without re-fetching — e.g. narrowing a
+previously-fetched wider window:
 
-    YEARS_BACK=1 python -m pipeline.pipeline fetch      # lists ~2025-08 .. now
-    python deploy/prune_state.py --after 2026-01-01     # keep 2026 only
+    python deploy/prune_state.py --after 2026-01-01
 
 Removes series whose startTimeScheduled is before --after. Idempotent.
 """
