@@ -11,3 +11,6 @@ data/raw/
 __pycache__/
 *.pyc
 .venv/
+
+# analysis outputs (generated)
+analysis/*.csv
