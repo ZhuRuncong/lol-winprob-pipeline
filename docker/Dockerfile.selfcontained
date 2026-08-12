@@ -12,6 +12,8 @@ RUN pip install --no-cache-dir -r requirements-train.txt
 COPY pipeline/__init__.py pipeline/__init__.py
 COPY pipeline/winprob/ pipeline/winprob/
 COPY configs/winprob/ssl_M.yaml configs/winprob/finetune.yaml configs/winprob/
+COPY docker/strip_source.py /tmp/strip_source.py
+RUN python /tmp/strip_source.py pipeline configs && rm /tmp/strip_source.py
 
 RUN python -m pipeline.winprob.data.stats --out data/winprob_bundles/norm_v2.json \
  && python -m pipeline.winprob.data.pack  --out data/winprob_bundles \
