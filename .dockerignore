@@ -1,8 +1,12 @@
 .git
 .venv
 data
+runs
+out
 **/__pycache__
 *.pyc
 .env
 .env.*
 !.env.example
+**/*.md
+analysis

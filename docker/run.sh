@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Full sequential pipeline: baselines -> SSL pretrain -> K-member finetune ->
-# ensemble -> calibrate -> final report + probes -> export model.pt.
-# Everything printed lands in $OUT_DIR/results.txt; the shipped predictor
-# lands in $OUT_DIR/model.pt. Env knobs: TRUNK (S|M|L), SSL_EPOCHS, K_MEMBERS.
 set -euo pipefail
 cd /app
 OUT="${OUT_DIR:-/app/out}"
