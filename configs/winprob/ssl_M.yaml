@@ -1,0 +1,10 @@
+# Phase A pretrain, M trunk (~25M) — the Day-1 default candidate.
+name: ssl_M
+trunk: M
+train:
+  phase: ssl
+  token_budget: 65536      # raise until ~80% VRAM on the real card (Day 1)
+  lr: 3.0e-4
+  epochs: 60               # extend if val SSL still improving (Day 2)
+  num_workers: 8
+  amp_dtype: bf16

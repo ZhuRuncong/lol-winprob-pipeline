@@ -14,3 +14,8 @@ __pycache__/
 
 # analysis outputs (generated)
 analysis/*.csv
+
+# training artifacts (regenerated)
+data/winprob_bundles*/
+data/winprob_results*/
+runs/

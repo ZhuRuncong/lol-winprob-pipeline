@@ -1,0 +1,32 @@
+# Training container for the win-probability model on an AMD Instinct GPU.
+#
+# Pin BASE_TAG to the tag you actually pull on Day 1 and record it in the run
+# ledger — "latest" is only the default for the first build.
+#   docker build -f docker/Dockerfile.rocm -t winprob-train .
+#   docker run -it --device=/dev/kfd --device=/dev/dri --group-add video \
+#       --ipc=host --shm-size 16G -v $PWD/data:/app/data -v $PWD/runs:/app/runs \
+#       winprob-train bash
+ARG BASE_TAG=latest
+FROM rocm/pytorch:${BASE_TAG}
+
+WORKDIR /app
+
+# avoid allocator fragmentation with variable-length full-game batches
+ENV PYTORCH_HIP_ALLOC_CONF=expandable_segments:True \
+    MIOPEN_FIND_MODE=FAST \
+    PYTHONUNBUFFERED=1
+
+COPY requirements-train.txt .
+RUN pip install --no-cache-dir -r requirements-train.txt
+
+COPY pipeline/ pipeline/
+COPY configs/ configs/
+COPY tests/ tests/
+
+# Day-1 burn-in inside the container:
+#   python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+#   python -m pytest tests/test_winprob_contracts.py -x -q
+#   python -m pipeline.winprob.data.stats --out data/winprob_bundles/norm_v2.json
+#   python -m pipeline.winprob.data.pack --out data/winprob_bundles
+#   python -m pipeline.winprob.runner --jobs configs/winprob/jobs_day1.yaml
+CMD ["bash"]

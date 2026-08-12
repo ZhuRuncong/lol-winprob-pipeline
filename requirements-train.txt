@@ -1,0 +1,9 @@
+# Training-stack dependencies (torch comes from the ROCm base image in Docker;
+# for local CPU development install torch separately: pip install torch)
+numpy
+huggingface_hub
+scikit-learn
+lightgbm
+pyyaml
+pytest
+

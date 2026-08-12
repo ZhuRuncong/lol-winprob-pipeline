@@ -1,0 +1,15 @@
+# Phase B recipe (defaults = the plan's candidates; Day-2 sweep freezes them).
+name: finetune
+train:
+  phase: finetune
+  token_budget: 65536
+  lr: 3.0e-4               # heads
+  backbone_lr: 5.0e-5
+  epochs: 15
+  patience: 5
+  win_stride: 5
+  quarter_balance: true
+  num_workers: 8
+  amp_dtype: bf16
+loss:
+  ssl_retention: 0.25

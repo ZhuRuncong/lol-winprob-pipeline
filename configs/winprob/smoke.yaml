@@ -1,0 +1,12 @@
+# Tiny end-to-end config: proves plumbing on the 142-game local sample (CPU ok).
+# No number from this config is ever reported.
+name: smoke
+trunk: smoke
+train:
+  token_budget: 8192
+  epochs: 2
+  num_workers: 0
+  amp_dtype: fp32
+data:
+  bundles_dir: data/winprob_bundles_local
+  local_sample: true

@@ -1,0 +1,40 @@
+# Day 1 queue: data prep, CPU baselines, and the trunk-size gate sweep
+# (each SSL run at ~25% of full pretrain length; gate = frozen-probe val
+# log-loss + SSL val curves; pick the size, then edit jobs_day2 accordingly).
+# Run: python -m pipeline.winprob.runner --jobs configs/winprob/jobs_day1.yaml --concurrent 2
+jobs:
+  - name: stats
+    cmd: python -m pipeline.winprob.data.stats --out data/winprob_bundles/norm_v2.json
+    priority: 100
+  - name: pack
+    cmd: python -m pipeline.winprob.data.pack --out data/winprob_bundles
+    deps: [stats]
+    priority: 99
+  - name: baseline_time_prior
+    cmd: python -m pipeline.winprob.baselines.time_prior --bundles data/winprob_bundles --out data/winprob_results
+    deps: [pack]
+    priority: 20
+  - name: baseline_logistic
+    cmd: python -m pipeline.winprob.baselines.logistic --bundles data/winprob_bundles --out data/winprob_results
+    deps: [pack]
+    priority: 20
+  - name: baseline_gbt
+    cmd: python -m pipeline.winprob.baselines.gbt --bundles data/winprob_bundles --out data/winprob_results
+    deps: [pack]
+    priority: 21
+  - name: sweep_ssl_M
+    cmd: python -m pipeline.winprob.train_ssl --config configs/winprob/ssl_M.yaml --epochs 15 --bundles data/winprob_bundles --run runs/sweep_M
+    deps: [pack]
+    priority: 50
+  - name: sweep_ssl_S
+    cmd: python -m pipeline.winprob.train_ssl --config configs/winprob/ssl_M.yaml --trunk S --epochs 15 --bundles data/winprob_bundles --run runs/sweep_S
+    deps: [pack]
+    priority: 49
+  - name: sweep_ssl_L
+    cmd: python -m pipeline.winprob.train_ssl --config configs/winprob/ssl_M.yaml --trunk L --epochs 15 --bundles data/winprob_bundles --run runs/sweep_L
+    deps: [pack]
+    priority: 48
+  - name: sweep_ssl_M_maskheavy
+    cmd: python -m pipeline.winprob.train_ssl --config configs/winprob/ssl_M_maskheavy.yaml --bundles data/winprob_bundles --run runs/sweep_M_maskheavy
+    deps: [pack]
+    priority: 47

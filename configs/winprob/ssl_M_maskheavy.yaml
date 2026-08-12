@@ -1,0 +1,13 @@
+# Day-1 objective-weight variant: reconstruction-dominated pretraining.
+# Compared against ssl_M by frozen-probe val log-loss at the Day-1 gate.
+name: ssl_M_maskheavy
+trunk: M
+loss:
+  mask: 2.0
+  delta: 0.5
+train:
+  phase: ssl
+  token_budget: 65536
+  epochs: 15
+  num_workers: 8
+  amp_dtype: bf16
