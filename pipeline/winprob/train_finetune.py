@@ -70,6 +70,8 @@ def main():
                     help="seeded fraction of train SERIES to keep (ablation arm)")
     ap.add_argument("--resume", action="store_true",
                     help="continue from <run>/last.pt if present (spot-safe)")
+    ap.add_argument("--token-budget", type=int, default=None,
+                    help="timesteps per batch; THE memory knob")
     ap.add_argument("--preds-out", default=None,
                     help="write val/test predictions here when done")
     args = ap.parse_args()
@@ -96,6 +98,8 @@ def main():
     cfg.train.seed = args.seed
     if args.epochs is not None:
         cfg.train.epochs = args.epochs
+    if args.token_budget is not None:
+        cfg.train.token_budget = args.token_budget
 
     norm_version = load_norm_version(args.bundles)
     if ckpt_norm not in ("?", norm_version):

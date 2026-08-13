@@ -107,6 +107,9 @@ def main():
     ap.add_argument("--trunk", default=None, help="S|M|L|smoke preset override")
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--epochs", type=int, default=None)
+    ap.add_argument("--token-budget", type=int, default=None,
+                    help="timesteps per batch; THE memory knob (~0.35 GB VRAM "
+                         "per 1k for the M trunk)")
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--probe-every", type=int, default=4, help="epochs between frozen probes")
     args = ap.parse_args()
@@ -118,6 +121,8 @@ def main():
         overrides["train.seed"] = args.seed
     if args.epochs is not None:
         overrides["train.epochs"] = args.epochs
+    if args.token_budget is not None:
+        overrides["train.token_budget"] = args.token_budget
     cfg = load_config(args.config, **overrides)
     cfg.train.phase = "ssl"
 

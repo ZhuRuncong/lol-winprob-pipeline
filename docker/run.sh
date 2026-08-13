@@ -8,12 +8,13 @@ exec > >(tee -a "$OUT/results.txt") 2>&1
 TRUNK="${TRUNK:-M}"
 SSL_EPOCHS="${SSL_EPOCHS:-60}"
 K="${K_MEMBERS:-8}"
+TOKEN_BUDGET="${TOKEN_BUDGET:-65536}"
 B=data/winprob_bundles
 RUNS="$OUT/runs"
 R="$OUT/results"
 mkdir -p "$RUNS" "$R"
 
-echo "=== winprob pipeline start $(date -u +%FT%TZ)  trunk=$TRUNK ssl_epochs=$SSL_EPOCHS members=$K ==="
+echo "=== winprob pipeline start $(date -u +%FT%TZ)  trunk=$TRUNK ssl_epochs=$SSL_EPOCHS members=$K budget=$TOKEN_BUDGET ==="
 python -c "import torch; print('torch', torch.__version__, 'gpu', torch.cuda.is_available())"
 
 echo "--- [1/7] baselines ---"
@@ -28,7 +29,8 @@ fi
 
 echo "--- [2/7] phase A: SSL pretrain ---"
 python -m pipeline.winprob.train_ssl --config configs/winprob/ssl_M.yaml \
-    --trunk "$TRUNK" --epochs "$SSL_EPOCHS" --bundles $B --run "$RUNS/ssl" --resume
+    --trunk "$TRUNK" --epochs "$SSL_EPOCHS" --token-budget "$TOKEN_BUDGET" \
+    --bundles $B --run "$RUNS/ssl" --resume
 
 echo "--- [3/7] phase B: $K finetune members ---"
 MEMBER_CKPTS=()
@@ -39,6 +41,7 @@ for i in $(seq 1 "$K"); do
     else
         python -m pipeline.winprob.train_finetune --init "$RUNS/ssl/best.pt" \
             --config configs/winprob/finetune.yaml --bundles $B \
+            --token-budget "$TOKEN_BUDGET" \
             --run "$RUNS/ft_s$i" --seed "$i" --preds-out "$R/member_s$i" --resume
     fi
     MEMBER_CKPTS+=("$RUNS/ft_s$i/best.pt")
