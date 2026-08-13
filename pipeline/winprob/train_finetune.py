@@ -68,6 +68,8 @@ def main():
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--label-fraction", type=float, default=1.0,
                     help="seeded fraction of train SERIES to keep (ablation arm)")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue from <run>/last.pt if present (spot-safe)")
     ap.add_argument("--preds-out", default=None,
                     help="write val/test predictions here when done")
     args = ap.parse_args()
@@ -131,9 +133,22 @@ def main():
     total_steps = steps_per_epoch * cfg.train.epochs
     warmup = int(total_steps * cfg.train.warmup_frac)
     base_lrs = [cfg.train.backbone_lr, cfg.train.lr]
-    step, best, bad_epochs = 0, float("inf"), 0
+    step, best, bad_epochs, start_epoch = 0, float("inf"), 0, 0
 
-    for epoch in range(cfg.train.epochs):
+    last_ckpt = run_dir / "last.pt"
+    if args.resume and last_ckpt.exists():
+        ck = torch.load(last_ckpt, map_location=device, weights_only=False)
+        model.load_state_dict(ck["model"])
+        if ck.get("opt"):
+            opt.load_state_dict(ck["opt"])
+        ema.shadow = {k: v.to(device) for k, v in ck["ema"].items()}
+        start_epoch = ck["epoch"] + 1
+        step = ck.get("step", start_epoch * steps_per_epoch)
+        best = ck.get("best", best)
+        bad_epochs = ck.get("bad_epochs", 0)
+        print(f"resumed member from epoch {ck['epoch']} (best {best:.5f})")
+
+    for epoch in range(start_epoch, cfg.train.epochs):
         train_ds.set_epoch(epoch)
         train_sampler.set_epoch(epoch)
         nominal_games = len(train_ds) / max(len(train_sampler), 1)
@@ -179,9 +194,12 @@ def main():
                                            "label_fraction": args.label_fraction})
         else:
             bad_epochs += 1
-            if bad_epochs >= cfg.train.patience:
-                print(f"early stop at epoch {epoch} (patience {cfg.train.patience})")
-                break
+        # written every epoch so a reclaim loses at most one epoch
+        save_checkpoint(last_ckpt, model, ema, opt, epoch, cfg, norm_version,
+                        {"best": best, "step": step, "bad_epochs": bad_epochs})
+        if bad_epochs >= cfg.train.patience:
+            print(f"early stop at epoch {epoch} (patience {cfg.train.patience})")
+            break
 
     print(f"member done: best val 10-25min log-loss {best:.5f}")
 
