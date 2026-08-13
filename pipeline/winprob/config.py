@@ -82,9 +82,9 @@ D_KDA = 4  # kills, deaths, assists (z), vision_score / 50
 # Packed per-champion continuous vector: 26 base + 16 fourier + 4 kda + 12 micro
 D_CHAMP_CONT = len(X_CHAMP_FEATURES) + D_FOURIER + D_KDA + D_MICRO  # 58
 
-# Ward raster: per team, 4x4 grid alive-counts + 4 type counts, log1p'd.
-WARD_GRID = 4
-D_WARD = WARD_GRID * WARD_GRID + 4  # 20
+# Ward vision features: per team, sum-pooled Fourier position fingerprints
+# of alive wards (same basis as champion positions) + 4 type counts.
+D_WARD = D_FOURIER + 4  # 20
 
 # Packed team vector: 26 transformed + 20 ward raster
 D_TEAM_CONT = len(X_TEAM_FEATURES) + D_WARD  # 46

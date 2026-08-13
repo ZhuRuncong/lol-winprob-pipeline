@@ -2,7 +2,7 @@
 
 Each bundle is one uncompressed .npz under <out>/<split>/<game>.npz:
   champ    f16 [T,10,58]  z-applied continuous champion block
-  team     f16 [T,2,46]   z-applied team block (incl. ward raster)
+  team     f16 [T,2,46]   z-applied team block (incl. ward vision features)
   glob     f16 [T,12]     global block (transformed + clock Fourier)
   items    i16 [T,10,7]   hash-bucket item indices (0 = empty)
   item_cd  f16 [T,10,7]   bounded item cooldowns

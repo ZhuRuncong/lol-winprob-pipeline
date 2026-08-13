@@ -15,7 +15,7 @@ from ..config import (
     D_TEAM_CONT, D_WARD, FOURIER_K, ITEM_HASH_BUCKETS, MICRO_DISP_WINDOWS,
     MICRO_RATE_FEATURES, MICRO_RATE_WINDOWS, POS_GRID, ROLE_IDX, ROLES,
     STATIC_COLS, STYLE_VOCAB, TEAM_LOG1P_Z, TEAM_RAW, TEAM_TIMER300, TI,
-    WARD_GRID, X_CHAMP_FEATURES, X_TEAM_FEATURES, item_hash, keystone_hash,
+    X_CHAMP_FEATURES, X_TEAM_FEATURES, item_hash, keystone_hash,
 )
 
 # ---------------------------------------------------------------------------
@@ -123,15 +123,21 @@ def team_cont_prenorm(X_team: np.ndarray, wards: np.ndarray, T: int) -> np.ndarr
     for name in TEAM_TIMER300:
         base[:, :, TI[name]] /= 300.0
     out[:, :, :N_BASE_T] = base
-    out[:, :, N_BASE_T:] = np.log1p(ward_raster(wards, T))
+    out[:, :, N_BASE_T:] = ward_features(wards, T)
     return out
 
 
-def ward_raster(wards: np.ndarray, T: int) -> np.ndarray:
-    """Interval table [W,6] -> per-second per-team alive counts [T,2,20].
+def ward_features(wards: np.ndarray, T: int) -> np.ndarray:
+    """Interval table [W,6] -> per-second per-team vision features [T,2,20].
 
-    Channels: 16 = 4x4 map-grid cells, then 4 = ward-type counts. Uses only
-    the alive-at-t predicate (t_start <= t < t_end); no t_end-derived values.
+    Channels [0:16]: sum-pooled Fourier position fingerprints (same basis as
+    champion positions, scaled 0.25) over the team's alive wards — the
+    downstream linear layer learns its own soft map regions from the sums,
+    instead of a hand-drawn grid or fitted centroids (nothing to version, no
+    patch drift). Channels [16:20]: log1p alive counts by ward type.
+
+    Strictly causal: only the alive-at-t predicate (t_start <= t < t_end) is
+    used; no feature value derives from t_end.
     """
     out = np.zeros((T + 1, 2, D_WARD), dtype=np.float32)
     for team, wtype, x, z, ts, te in np.asarray(wards, dtype=np.float64):
@@ -140,14 +146,15 @@ def ward_raster(wards: np.ndarray, T: int) -> np.ndarray:
         if b <= a:
             continue
         tm = int(team)
-        gx = min(int(x * WARD_GRID), WARD_GRID - 1)
-        gz = min(int(z * WARD_GRID), WARD_GRID - 1)
-        out[a, tm, gx * WARD_GRID + gz] += 1
-        out[b, tm, gx * WARD_GRID + gz] -= 1
-        tc = WARD_GRID * WARD_GRID + int(np.clip(wtype, 0, 3))
+        fp = fourier_positions(np.array([x, z], dtype=np.float32)) * 0.25
+        out[a, tm, :D_FOURIER] += fp
+        out[b, tm, :D_FOURIER] -= fp
+        tc = D_FOURIER + int(np.clip(wtype, 0, 3))
         out[a, tm, tc] += 1
         out[b, tm, tc] -= 1
-    return np.cumsum(out[:T], axis=0)
+    acc = np.cumsum(out[:T], axis=0)
+    acc[:, :, D_FOURIER:] = np.log1p(np.maximum(acc[:, :, D_FOURIER:], 0.0))
+    return acc
 
 
 def global_cont(X_global: np.ndarray, T: int) -> np.ndarray:

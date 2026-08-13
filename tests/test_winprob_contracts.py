@@ -120,13 +120,13 @@ def test_swap_roundtrip_and_label_flip():
 
 # ---------------------------------------------------------------- ward t_end ban
 
-def test_ward_raster_uses_no_future_information():
-    """Truncating the ward table's future must not change the raster's past.
+def test_ward_features_use_no_future_information():
+    """Truncating the ward table's future must not change the features' past.
 
     If any feature value at time t derived from t_end (e.g. remaining
     lifetime), cutting intervals short at t would change values before t.
     """
-    from pipeline.winprob.data.transforms import ward_raster
+    from pipeline.winprob.data.transforms import ward_features
     rng = np.random.default_rng(0)
     W, T = 60, 400
     wards = np.stack([
@@ -135,10 +135,10 @@ def test_ward_raster_uses_no_future_information():
         rng.uniform(0, 300, W), np.zeros(W)], axis=1)
     wards[:, 5] = wards[:, 4] + rng.uniform(5, 200, W)     # t_end > t_start
     cut = 200
-    full = ward_raster(wards, T)
+    full = ward_features(wards, T)
     truncated = wards.copy()
     truncated[:, 5] = np.minimum(truncated[:, 5], cut)     # kill everything at t=cut
-    trunc = ward_raster(truncated, T)
+    trunc = ward_features(truncated, T)
     assert np.array_equal(full[:cut], trunc[:cut])
 
 

@@ -161,6 +161,11 @@ def main():
     last_ckpt = run_dir / "last.pt"
     if args.resume and last_ckpt.exists():
         ck = torch.load(last_ckpt, map_location=device, weights_only=False)
+        if ck.get("norm_version") not in (None, norm_version):
+            raise SystemExit(
+                f"checkpoint {last_ckpt} was trained on norm "
+                f"{ck.get('norm_version')} but bundles are {norm_version} — "
+                f"feature contract changed; delete the old run dir to start fresh")
         model.load_state_dict(ck["model"])
         if ck.get("opt"):
             opt.load_state_dict(ck["opt"])
